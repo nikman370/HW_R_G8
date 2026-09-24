@@ -108,9 +108,27 @@ dm <- dm_arm
    Отдельно выведите или подчеркните визиты, на которых измеряли витамин B12.
 
 ```{r}
-# read_csv
-# select, rename
-# distinct, count
+lb <- read_csv("data/lb.csv")
+# длинный формат данных, один пациент встречается много раз. Значения разных тестов лежат не в отдельных столбцах, а друг под другом в одном столбце LBSTRESN, а какой это тест - в LBTEST
+
+lb_new <- lb |>
+  select(USUBJID, LBTESTCD, LBTEST, LBSTRESN, VISIT) |>
+  rename(ID = USUBJID)
+
+patient_rows <- lb_new |>
+  count(ID) # считаем строки на одного пациента
+min(patient_rows$n)
+max(patient_rows$n)
+
+distinct(lb_new, VISIT) # на каких визитах выполняли измерения
+count(lb_new, VISIT) # сколько измерений на каждом визите
+distinct(lb_new, LBTEST) # какие лабораторные показатели измеряли
+count(lb_new, LBTEST) # сколько измерений на каждом тесте
+
+b12 <- lb_new |>
+  filter(LBTEST == "Vitamin B12") |>
+  distinct(VISIT)
+b12 # визиты, на которых измеряли витамин B12
 ```
 
 4. Оставьте только участников своей команды.
@@ -119,8 +137,11 @@ dm <- dm_arm
 6. После фильтрации выведите число измерений каждого показателя.
 
 ```{r}
-# left_join, semi_join
-# filter
+lb_team <- lb_new |>
+  semi_join(dm, by = "ID") # оставляем только наших участников, берем только те ID, которые есть в dm
+lb_team_filtred <- lb_team |>
+  filter(LBTESTCD %in% c("HGB", "LYM"), VISIT == "SCREENING 1") # оствляем только нужные показатели и визит
+count(lb_team_filtred, LBTESTCD) # число измерений каждого показателя
 ```
 
 7. Переведите данные в широкий формат и сохраните в переменную `lb_wide`.
@@ -128,15 +149,22 @@ dm <- dm_arm
    Идентификатор участника должен находиться в столбце с названием `ID`.
 
 ```{r}
-# select
-# pivot_wider
-# distinct, count
+lb_wide <- lb_team_filtred |>
+  select(ID, LBTESTCD, LBSTRESN) |>
+  pivot_wider(names_from = LBTESTCD, values_from = LBSTRESN)
 ```
 
 8. Проверьте, что `lb_wide` содержит ровно одну строку на одного участника.
 
 ```{r}
-# stopifnot, stop
+dup_check <- lb_wide |>
+  count(ID) |>
+  filter(n > 1)
+if (nrow(dup_check) > 0) {
+  print(dup_check)
+  stop("Обнаружены повторяющиеся ID")
+}
+stopifnot(nrow(lb_wide) == n_distinct(lb_wide$ID)) # сравниваем количество строк с количеством уникальных значений в столбце ID
 ```
 
 ### 1.3. Витальные показатели
