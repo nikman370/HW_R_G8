@@ -10,15 +10,18 @@ author:
    - name: Зорина Елена
      url: https://github.com/el-zorina
      roles: Витальные показатели
+   - name: Александрова Полина
+     url: https://github.com/a-polina-n
+     roles: Генотип APOE
 format:
   html:
     embed-resources: true
 ---
 
-Каждый **самостоятельно** заполняет сведения о себе в разделе `author` выше, делает коммит и загружает в репозиторий.
-В поле `url` укажите ссылку на свой GitHub.
+Каждый **самостоятельно** заполняет сведения о себе в разделе `author` выше, делает коммит и загружает в репозиторий. 
+В поле `url` укажите ссылку на свой GitHub. 
 В поле `roles` укажите свою роль или данные, за которые отвечаете.
-См. [документацию Quarto](https://quarto.org/docs/authoring/front-matter.html#authors-and-affiliations).
+См. [документацию Quarto](https://quarto.org/docs/authoring/front-matter.html#authors-and-affiliations). 
 
 ```{r}
 #| include: false
@@ -51,7 +54,7 @@ library(tidyverse)
 
 ```{r}
 dm <- read_csv("data/dm.csv")
-# широкий формат данных, один пациент - одна строка. Все зарактеристики разложены по отдельным столбцам в этой строке
+# широкий формат данных, один пациент - одна строка. Все характеристики разложены по отдельным столбцам в этой строке
 dm_new <- dm |>
   select(USUBJID, AGE, SEX, ARM) |>
   rename(ID = USUBJID)
@@ -200,12 +203,25 @@ dm <- dm_arm
 
 1. Импортируйте данные.
 2. Какой формат у этих данных: длинный или широкий? Объясните ответ.
+
+Формат данных длинный - на каждого участника приходится много строк, в каждой строке отдельный генетический вариант.
+
    Какое минимальное и максимальное число строк на одного участника?
 
+У каждого участника ровно по 12 строк. 
+
+
 ```{r}
-# read_csv
-# select, rename
-# count
+gf <- read_csv("data/gf.csv") 
+
+gf_new <- gf |> 
+   select(USUBJID, GFORRES, GFSYM, GFPVRID, VISIT) |> 
+   rename(ID = USUBJID)
+
+gf_new |>
+  count(ID) |>
+  summarise(min_rows = min(n),
+    max_rows = max(n))
 ```
 
 3. Оставьте только участников своей команды.
@@ -213,8 +229,9 @@ dm <- dm_arm
 4. Оставьте только ген `APOE` и варианты с идентификаторами `rs429358` и `rs7412`.
 
 ```{r}
-# left_join, semi_join
-# filter
+gf_filtered <- gf_new |> 
+   semi_join(dm, by = 'ID') |> 
+   filter(GFSYM == 'APOE' & GFPVRID == 'rs429358' | GFPVRID == 'rs7412')
 ```
 
 5. По таблице ниже определите генотип APOE для каждого участника.
@@ -234,15 +251,33 @@ dm <- dm_arm
    Идентификатор участника должен находиться в столбце `ID`.
 
 ```{r}
-# pivot_wider
-# if_else, case_when
-# count
+gf_wide <- 
+   gf_filtered |> pivot_wider(
+   names_from = GFPVRID,
+   values_from = GFORRES
+)
+
+gf_wide <- gf_wide |> 
+   mutate(
+   GT_APOE = case_when(
+      rs429358 == "T/T" & rs7412 == "T/T" ~ "ε2/ε2",
+      rs429358 == "T/T" & rs7412 == "C/T" ~ "ε2/ε3",
+      rs429358 == "T/C" & rs7412 == "C/T" ~ "ε2/ε4",
+      rs429358 == "T/T" & rs7412 == "C/C" ~ "ε3/ε3",
+      rs429358 == "T/C" & rs7412 == "C/C" ~ "ε3/ε4",
+      rs429358 == "C/C" & rs7412 == "C/C" ~ "ε4/ε4",
+      TRUE ~ NA
+   )
+   )
+
+gf_wide |>
+  count(GT_APOE)
 ```
 
 8. Проверьте, что `gf_wide` содержит ровно одну строку на участника.
 
 ```{r}
-# stopifnot, stop
+stopifnot(nrow(gf_wide) == n_distinct(gf_wide$ID))
 ```
 
 ## 2. Объединение данных
