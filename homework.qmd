@@ -183,9 +183,19 @@ stopifnot(nrow(lb_wide) == n_distinct(lb_wide$ID)) # сравниваем кол
 3. На каких визитах измеряли рост (`HEIGHT`) и вес (`WEIGHT`)?
 
 ```{r}
-# read_csv
-# select, rename
-# count
+# 1. Импорт данных по витальным показателям
+vs <- read_csv("data/vs.csv")
+# 2. Формат данных и число строк на пациента
+#формат данных длинный: одна строка - один показатель измерения при конкретном визите
+vs |>
+  count(USUBJID) |>
+  summarise(min_rows = min(n), max_rows = max(n))
+
+# 3. Визиты, на которых измеряли рост и вес
+vs |>
+  filter(VSTESTCD %in% c("HEIGHT", "WEIGHT")) |>
+  distinct(VSTESTCD, VISIT) |>
+  arrange(VSTESTCD, VISIT)
 ```
 
 4. Оставьте только участников своей команды.
@@ -193,8 +203,14 @@ stopifnot(nrow(lb_wide) == n_distinct(lb_wide$ID)) # сравниваем кол
 5. Оставьте измерения роста и веса на визите `SCREENING 1`, а также измерения веса на визите вашей команды.
 
 ```{r}
-# left_join, semi_join
-# filter
+# 4-5. Фильтрация по росту и весу на SCREENING 1, вес на WEEK 4
+vs_filtered <- vs |>
+  select(USUBJID, VSTESTCD, VSSTRESN, VISIT) |>
+  semi_join(dm, by = c("USUBJID" = "ID")) |>
+  filter(
+    VSTESTCD %in% c("HEIGHT", "WEIGHT"),
+    VISIT == "SCREENING 1" | (VSTESTCD == "WEIGHT" & VISIT == "WEEK 4")
+  )
 ```
 
 6. Переведите данные в широкий формат и сохраните в переменной `vs_wide`.
@@ -203,16 +219,29 @@ stopifnot(nrow(lb_wide) == n_distinct(lb_wide$ID)) # сравниваем кол
    Идентификатор участника должен находиться в столбце с названием `ID`.
 
 ```{r}
-# select
-# distinct, count
-# str_c, paste0
-# pivot_wider
+# 6. Уникальные метки измерений для pivot_wider
+vs_labeled <- vs_filtered |>
+  mutate(
+    measure = case_when(
+      VSTESTCD == "HEIGHT" & VISIT == "SCREENING 1" ~ "HEIGHT_SCR",
+      VSTESTCD == "WEIGHT" & VISIT == "SCREENING 1" ~ "WEIGHT_SCR",
+      VSTESTCD == "WEIGHT" & VISIT == "WEEK 4"      ~ "WEIGHT_WK4"
+    )
+  )
+
+# Широкий формат
+vs_wide <- vs_labeled |>
+  select(USUBJID, measure, VSSTRESN) |>
+  pivot_wider(names_from = measure, values_from = VSSTRESN) |>
+  rename(ID = USUBJID)
 ```
 
 7. Проверьте, что `vs_wide` содержит ровно одну строку на участника.
 
 ```{r}
-# stopifnot, stop
+# 7. Проверка: одна строка на участника
+stopifnot(nrow(vs_wide) == n_distinct(vs_wide$ID))
+vs_wide
 ```
 
 ### 1.4. Генотип APOE
