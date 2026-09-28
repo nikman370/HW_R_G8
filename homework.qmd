@@ -1,8 +1,8 @@
 ---
 title: Домашнее задание по Автоматизации обработки данных
 author:
-   - name: Имя Студента 1
-     url: https://github.com/github-username-of-author-1
+   - name: Иванов Никита
+     url: https://github.com/nikman370
      roles: Координатор
    - name: Акименкова Александра
      url: https://github.com/akimaldm-png
@@ -228,7 +228,7 @@ vs_labeled <- vs_filtered |>
     measure = case_when(
       VSTESTCD == "HEIGHT" & VISIT == "SCREENING 1" ~ "HEIGHT_SCR",
       VSTESTCD == "WEIGHT" & VISIT == "SCREENING 1" ~ "WEIGHT_SCR",
-      VSTESTCD == "WEIGHT" & VISIT == "WEEK 4"      ~ "WEIGHT_WK4"
+      VSTESTCD == "WEIGHT" & VISIT == "WEEK 4" ~ "WEIGHT_WK4"
     )
   )
 
@@ -269,16 +269,15 @@ vs_wide
 
 
 ```{r}
-gf <- read_csv("data/gf.csv") 
+gf <- read_csv("data/gf.csv")
 
-gf_new <- gf |> 
-   select(USUBJID, GFORRES, GFSYM, GFPVRID, VISIT) |> 
-   rename(ID = USUBJID)
+gf_new <- gf |>
+  select(USUBJID, GFORRES, GFSYM, GFPVRID, VISIT) |>
+  rename(ID = USUBJID)
 
 gf_new |>
   count(ID) |>
-  summarise(min_rows = min(n),
-    max_rows = max(n))
+  summarise(min_rows = min(n), max_rows = max(n))
 ```
 
 3. Оставьте только участников своей команды.
@@ -286,9 +285,9 @@ gf_new |>
 4. Оставьте только ген `APOE` и варианты с идентификаторами `rs429358` и `rs7412`.
 
 ```{r}
-gf_filtered <- gf_new |> 
-   semi_join(dm, by = 'ID') |> 
-   filter(GFSYM == 'APOE' & GFPVRID == 'rs429358' | GFPVRID == 'rs7412')
+gf_filtered <- gf_new |>
+  semi_join(dm, by = 'ID') |>
+  filter(GFSYM == 'APOE' & GFPVRID == 'rs429358' | GFPVRID == 'rs7412')
 ```
 
 5. По таблице ниже определите генотип APOE для каждого участника.
@@ -308,15 +307,16 @@ gf_filtered <- gf_new |>
    Идентификатор участника должен находиться в столбце `ID`.
 
 ```{r}
-gf_wide <- 
-   gf_filtered |> pivot_wider(
-   names_from = GFPVRID,
-   values_from = GFORRES
-)
+gf_wide <-
+  gf_filtered |>
+  pivot_wider(
+    names_from = GFPVRID,
+    values_from = GFORRES
+  )
 
-gf_wide <- gf_wide |> 
-   mutate(
-   GT_APOE = case_when(
+gf_wide <- gf_wide |>
+  mutate(
+    GT_APOE = case_when(
       rs429358 == "T/T" & rs7412 == "T/T" ~ "ε2/ε2",
       rs429358 == "T/T" & rs7412 == "C/T" ~ "ε2/ε3",
       rs429358 == "T/C" & rs7412 == "C/T" ~ "ε2/ε4",
@@ -324,8 +324,8 @@ gf_wide <- gf_wide |>
       rs429358 == "T/C" & rs7412 == "C/C" ~ "ε3/ε4",
       rs429358 == "C/C" & rs7412 == "C/C" ~ "ε4/ε4",
       TRUE ~ NA
-   )
-   )
+    )
+  )
 
 gf_wide |>
   count(GT_APOE)
@@ -347,17 +347,43 @@ stopifnot(nrow(gf_wide) == n_distinct(gf_wide$ID))
 Сохраните результат в отдельную переменную для дальнейшего анализа.
 
 ```{r}
-# left_join
+# Объединение всех датафреймов в один (data_merged) по столбцу ID
+data_merged <- dm |>
+  left_join(lb_wide, by = "ID") |>
+  left_join(vs_wide, by = "ID") |>
+  left_join(gf_wide, by = "ID")
 ```
 
 Проверьте, что число строк в результате совпадает с числом участников в `dm` и что не появилось повторяющихся значений `ID`.
 
 ```{r}
-# count, nrow
-# stopifnot, stop
+
+stopifnot(nrow(data_merged) == nrow(dm)) # Проверяем равенство строк, если будет неравно - то выдаст ошибку
+
+duplicates <- data_merged |> # Считаем, сколько раз встречается каждый ID
+  count(ID) |>
+  filter(n > 1)
+
+if (nrow(duplicates) > 0) {
+  # Если нашли хотя бы один дубликат (>0), выдаем сообщением
+  stop("Ошибка: В объединенной таблице обнаружены повторяющиеся значения ID!")
+} else {
+  message("Проверка пройдена успешно: дубликатов ID не обнаружено.")
+}
 ```
 
 Для каждого столбца итогового датафрейма выведите число непустых и число пропущенных значений.
+
+```{r}
+missing_count <- colSums(is.na(data_merged)) # Считаем пропущенные и непустые значения
+complete_count <- colSums(!is.na(data_merged))
+
+# Собираем в таблицу
+na_table <- data.frame(Missing = missing_count, Complete = complete_count)
+
+# Выводим в терминал значения
+print(na_table)
+```
 
 ## 3. Описательные статистики и отчёт
 
