@@ -408,13 +408,110 @@ print(na_table)
 4. Кратко прокомментируйте результаты, приведённые в таблицах.
 
 ```{r}
-# mutate, case_when, group_by, summarise
-# n, mean, median, sd, quantile, IQR
+# Переводим HGB и LYM из широкого формата в длинный, чтобы удобно считать статистики сразу по обоим показателям
+lab_long <- data_merged |>
+  pivot_longer(cols = c(HGB, LYM), names_to = "test", values_to = "value")
 
-# round, str_c, paste0
-# flextable
-# см. документацию https://davidgohel.github.io
+# Считаем статистики по каждому лабораторному показателю в каждой группе лечения (ARM)
+lab_stats_arm <- lab_long |>
+  group_by(ARM, test) |>
+  summarise(
+    n = sum(!is.na(value)), # число непустых значений
+    n_missing = sum(is.na(value)), # число пропущенных значений
+    mean = mean(value, na.rm = TRUE), # среднее
+    sd = sd(value, na.rm = TRUE), # стандартное отклонение
+    median = median(value, na.rm = TRUE), # медиана
+    q25 = quantile(value, 0.25, na.rm = TRUE), # 25-й процентиль
+    q75 = quantile(value, 0.75, na.rm = TRUE), # 75-й процентиль
+    min = min(value, na.rm = TRUE), # минимум
+    max = max(value, na.rm = TRUE), # максимум
+    .groups = "drop"
+  )
+
+# Создаём переменную носитель/неноситель аллеля ε4 по столбцу GT_APOE
+data_merged <- data_merged |>
+  mutate(
+    e4_status = case_when(
+      str_detect(GT_APOE, "ε4") ~ "Носитель ε4",
+      TRUE ~ "Неноситель ε4"
+    )
+  )
+
+# Те же статистики, но теперь в разбивке по статусу носительства ε4
+lab_stats_e4 <- data_merged |>
+  pivot_longer(cols = c(HGB, LYM), names_to = "test", values_to = "value") |>
+  group_by(e4_status, test) |>
+  summarise(
+    n = sum(!is.na(value)),
+    n_missing = sum(is.na(value)),
+    mean = mean(value, na.rm = TRUE),
+    sd = sd(value, na.rm = TRUE),
+    median = median(value, na.rm = TRUE),
+    q25 = quantile(value, 0.25, na.rm = TRUE),
+    q75 = quantile(value, 0.75, na.rm = TRUE),
+    min = min(value, na.rm = TRUE),
+    max = max(value, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Объединяем числа в удобные для чтения строки
+format_stats <- function(df, group_col) {
+  df |>
+    mutate(
+      `Среднее (СО)` = str_c(round(mean, 1), " (", round(sd, 1), ")"),
+      `Медиана [25%; 75%]` = str_c(
+        round(median, 1),
+        " [",
+        round(q25, 1),
+        "; ",
+        round(q75, 1),
+        "]"
+      ),
+      `Мин – Макс` = str_c(round(min, 1), " – ", round(max, 1))
+    ) |>
+    select(
+      {{ group_col }},
+      test,
+      n,
+      n_missing,
+      `Среднее (СО)`,
+      `Медиана [25%; 75%]`,
+      `Мин – Макс`
+    )
+}
+
+library(flextable)
+
+# Таблица по группам лечения
+ft_arm <- format_stats(lab_stats_arm, ARM) |>
+  flextable() |>
+  set_header_labels(
+    ARM = "Группа лечения",
+    test = "Показатель",
+    n = "N (непустых)",
+    n_missing = "Пропущено"
+  ) |>
+  autofit()
+
+# Таблица по статусу носительства ε4
+ft_e4 <- format_stats(lab_stats_e4, e4_status) |>
+  flextable() |>
+  set_header_labels(
+    e4_status = "Статус ε4",
+    test = "Показатель",
+    n = "N (непустых)",
+    n_missing = "Пропущено"
+  ) |>
+  autofit()
+
+# Выводим обе таблицы
+ft_arm
+ft_e4
 ```
+
+По группам лечения HGB у Xanomeline High Dose в среднем немного выше, чем у Placebo, но разница небольшая. LYM практически не различаются между группами. Пропущенных значений немного - не должно сильно влиять на результаты. 
+
+По статусу носительства ε4 - значимых значений между группами не наблюдается.
 
 ### 3.2. Анализ витальных показателей
 
@@ -468,6 +565,38 @@ print(na_table)
 Проиллюстрируйте результаты из таблиц раздела 3 графиками.
 
 ```{r}
+# Визуализация Лабораторные показатели
+
+# Боксплот с точками - показатели по группам лечения (ARM)
+ggplot(lab_long, aes(x = ARM, y = value, fill = ARM)) +
+  geom_boxplot(outlier.shape = NA) + # боксплот без отдельных выбросов
+  geom_jitter(width = 0.15, alpha = 0.4, size = 1) + # точки-наблюдения
+  facet_wrap(~test, scales = "free_y") + # отдельная панель для HGB и для LYM, с независимой шкалой Y
+  labs(
+    title = "Лабораторные показатели по группам лечения",
+    x = "Группа лечения",
+    y = "Значение"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Данные в длинном формате с добавленным статусом ε4
+lab_long_e4 <- data_merged %>%
+  pivot_longer(cols = c(HGB, LYM), names_to = "test", values_to = "value")
+
+# Показатели по статусу носительства ε4
+ggplot(lab_long_e4, aes(x = e4_status, y = value, fill = e4_status)) +
+  geom_violin(alpha = 0.5) + # форма показывает плотность распределения
+  geom_boxplot(width = 0.1, outlier.shape = NA) + # узкий боксплот поверх для медианы и разброса
+  facet_wrap(~test, scales = "free_y") +
+  labs(
+    title = "Лабораторные показатели по статусу носительства ε4",
+    x = "Статус ε4",
+    y = "Значение"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
 # plot, boxplot, hist
 
 # ggplot
