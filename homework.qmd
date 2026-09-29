@@ -565,6 +565,38 @@ ft_e4
 Проиллюстрируйте результаты из таблиц раздела 3 графиками.
 
 ```{r}
+# Визуализация Лабораторные показатели
+
+# Боксплот с точками - показатели по группам лечения (ARM)
+ggplot(lab_long, aes(x = ARM, y = value, fill = ARM)) +
+  geom_boxplot(outlier.shape = NA) + # боксплот без отдельных выбросов
+  geom_jitter(width = 0.15, alpha = 0.4, size = 1) + # точки-наблюдения
+  facet_wrap(~test, scales = "free_y") + # отдельная панель для HGB и для LYM, с независимой шкалой Y
+  labs(
+    title = "Лабораторные показатели по группам лечения",
+    x = "Группа лечения",
+    y = "Значение"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Данные в длинном формате с добавленным статусом ε4
+lab_long_e4 <- data_merged %>%
+  pivot_longer(cols = c(HGB, LYM), names_to = "test", values_to = "value")
+
+# Показатели по статусу носительства ε4
+ggplot(lab_long_e4, aes(x = e4_status, y = value, fill = e4_status)) +
+  geom_violin(alpha = 0.5) + # форма показывает плотность распределения
+  geom_boxplot(width = 0.1, outlier.shape = NA) + # узкий боксплот поверх для медианы и разброса
+  facet_wrap(~test, scales = "free_y") +
+  labs(
+    title = "Лабораторные показатели по статусу носительства ε4",
+    x = "Статус ε4",
+    y = "Значение"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
 # plot, boxplot, hist
 
 # ggplot
