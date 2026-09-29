@@ -531,11 +531,146 @@ ft_e4
 6. Кратко прокомментируйте результаты, приведённые в таблицах.
 
 ```{r}
-# mutate, case_when, group_by, summarise
-# n, mean, median, sd, quantile, IQR
-# flextable
-# см. документацию https://davidgohel.github.io
+# 1. BMI на скрининге
+data_bmi <- data_merged |>
+  mutate(
+    BMI = WEIGHT_SCR / (HEIGHT_SCR / 100)^2  # рост из см в м
+  )
+
+# 2. Категория BMI: норма [18.5; 25) / не норма — вне диапазона
+data_bmi <- data_bmi |>
+  mutate(
+    BMI_CAT = case_when(
+      BMI >= 18.5 & BMI < 25 ~ "Норма",
+      !is.na(BMI)            ~ "Не норма",
+      TRUE                   ~ NA_character_
+    )
+  )
+
+# 3. BMI по группам лечения в двух вариантах:
+#    3a — как количественный показатель,
+#    3b — как категория норма / не норма
+
+# 3a. Количественный показатель: N, пропуски, среднее (СО),
+#     медиана [25%; 75%], мин – макс
+bmi_stats_arm <- data_bmi |>
+  group_by(ARM) |>
+  summarise(
+    n         = sum(!is.na(BMI)),
+    n_missing = sum(is.na(BMI)),
+    mean      = mean(BMI, na.rm = TRUE),
+    sd        = sd(BMI, na.rm = TRUE),
+    median    = median(BMI, na.rm = TRUE),
+    q25       = quantile(BMI, 0.25, na.rm = TRUE),
+    q75       = quantile(BMI, 0.75, na.rm = TRUE),
+    min       = min(BMI, na.rm = TRUE),
+    max       = max(BMI, na.rm = TRUE),
+    .groups   = "drop"
+  )
+
+# 3b. Категория норма / не норма: число участников (процент)
+bmi_cat_arm <- data_bmi |>
+  filter(!is.na(BMI_CAT)) |>
+  count(ARM, BMI_CAT) |>
+  group_by(ARM) |>
+  mutate(
+    pct   = round(n / sum(n) * 100, 1),
+    value = str_c(n, " (", pct, "%)")
+  ) |>
+  ungroup() |>
+  select(ARM, BMI_CAT, value) |>
+  pivot_wider(names_from = BMI_CAT, values_from = value)
+
+# 4. Число аллелей ε4 (0 / 1 / 2) у каждого участника
+#    и BMI по этим категориям
+data_bmi <- data_bmi |>
+  mutate(
+    e4_count = case_when(
+      GT_APOE == "ε4/ε4"                            ~ 2L,
+      GT_APOE %in% c("ε3/ε4", "ε2/ε4")              ~ 1L,
+      GT_APOE %in% c("ε3/ε3", "ε2/ε3", "ε2/ε2")     ~ 0L,
+      TRUE                                           ~ NA_integer_
+    )
+  )
+
+bmi_stats_e4 <- data_bmi |>
+  filter(!is.na(e4_count)) |>
+  group_by(e4_count) |>
+  summarise(
+    n         = sum(!is.na(BMI)),
+    n_missing = sum(is.na(BMI)),
+    mean      = mean(BMI, na.rm = TRUE),
+    sd        = sd(BMI, na.rm = TRUE),
+    median    = median(BMI, na.rm = TRUE),
+    q25       = quantile(BMI, 0.25, na.rm = TRUE),
+    q75       = quantile(BMI, 0.75, na.rm = TRUE),
+    min       = min(BMI, na.rm = TRUE),
+    max       = max(BMI, na.rm = TRUE),
+    .groups   = "drop"
+  ) |>
+  mutate(e4_count = factor(e4_count, levels = 0:2))
+
+# 5. Оформление результатов
+
+format_bmi_stats <- function(df, group_col) {
+  df |>
+    mutate(
+      `Среднее (СО)` = str_c(round(mean, 1), " (", round(sd, 1), ")"),
+      `Медиана [25%; 75%]` = str_c(
+        round(median, 1),
+        " [",
+        round(q25, 1),
+        "; ",
+        round(q75, 1),
+        "]"
+      ),
+      `Мин – Макс` = str_c(round(min, 1), " – ", round(max, 1))
+    ) |>
+    select(
+      {{ group_col }},
+      n,
+      n_missing,
+      `Среднее (СО)`,
+      `Медиана [25%; 75%]`,
+      `Мин – Макс`
+    )
+}
+
+# Таблица 3a. BMI по группам лечения — количественный показатель
+ft_bmi_arm <- format_bmi_stats(bmi_stats_arm, ARM) |>
+  flextable() |>
+  set_header_labels(
+    ARM       = "Группа лечения",
+    n         = "N (непустых)",
+    n_missing = "Пропущено"
+  ) |>
+  set_caption("BMI на скрининге по группам лечения, кг/м²") |>
+  autofit()
+
+# Таблица 3b. Категория BMI по группам лечения — n (%)
+ft_bmi_cat <- bmi_cat_arm |>
+  flextable() |>
+  set_header_labels(ARM = "Группа лечения") |>
+  set_caption("Категория BMI на скрининге по группам лечения: n (%)") |>
+  autofit()
+
+# Таблица 4. BMI по числу аллелей ε4 — количественный показатель
+ft_bmi_e4 <- format_bmi_stats(bmi_stats_e4, e4_count) |>
+  flextable() |>
+  set_header_labels(
+    e4_count  = "Число аллелей ε4",
+    n         = "N (непустых)",
+    n_missing = "Пропущено"
+  ) |>
+  set_caption("BMI на скрининге по числу аллелей ε4, кг/м²") |>
+  autofit()
+
+# Выводим три таблицы
+ft_bmi_arm
+ft_bmi_cat
+ft_bmi_e4
 ```
+6. BMI рассчитан по стандартной формуле: вес в килограммах, деленный на рост в метрах в квадрате. Пропусков нет — у всех 170 участников есть и рост, и вес. По группам лечения средние значения BMI у Placebo и Xanomeline High Dose практически не отличаются. Больше половины участников — 101 из 170 — попали в категорию «норма» (BMI от 18.5 до 25). При разбиении по числу аллелей ε4 выраженного тренда тоже не видно: у 98 человек ноль аллелей, у 65 — одна, у 7 — две. Средние и медианы BMI во всех трёх подгруппах близки, так что заметной связи между числом аллелей ε4 и BMI в данных не наблюдается.
 
 ### 3.3. Анализ генотипа
 
