@@ -26,6 +26,7 @@ format:
 ```{r}
 #| include: false
 library(tidyverse)
+library(flextable)
 # пакеты подключаются в первом чанке
 ```
 
@@ -269,7 +270,7 @@ vs_wide
 
 
 ```{r}
-gf <- read_csv("data/gf.csv")
+gf <- read_csv("data/gf.csv", col_types = cols(GFGENLOC = col_character())) # добавила аргумент col_types для избежания прочтения данных как дат, хотя этот столбец нам в дальнейшем и не нужен
 
 gf_new <- gf |>
   select(USUBJID, GFORRES, GFSYM, GFPVRID, VISIT) |>
@@ -480,8 +481,6 @@ format_stats <- function(df, group_col) {
     )
 }
 
-library(flextable)
-
 # Таблица по группам лечения
 ft_arm <- format_stats(lab_stats_arm, ARM) |>
   flextable() |>
@@ -685,11 +684,172 @@ ft_bmi_e4
 4. Кратко прокомментируйте результаты, приведённые в таблицах.
 
 ```{r}
-# mutate, case_when, group_by, summarise
-# n, mean, median, sd, quantile, IQR
-# flextable
-# см. документацию https://davidgohel.github.io
+# 1
+apoe_treatment <- data_merged |> 
+  group_by(ARM, GT_APOE) |> 
+  summarise(
+    n = n(),
+    .groups = "drop"
+  )
+apoe_treatment <- apoe_treatment |> 
+  group_by(ARM) |> 
+  mutate(
+    percent = round(n / sum(n) * 100, 2)
+  )
+
+ft_apoe_1 <- apoe_treatment %>%
+  flextable() %>%
+  set_header_labels(
+    ARM = "Группа лечения",
+    GT_APOE = "Генотип APOE",
+    n = "Число участников",
+    percent = "Доля, %"
+  ) %>%
+  autofit()
+
+# 2
+# поскольку в основной таблице data_merged данных по BMI нет, во избежание дуплицирования обсчетов, я использовала данные по BMI, использованные в секции 3.2
+idbmi <- data_bmi |> 
+  select(ID, BMI)
+
+apoe_bmi <- data_merged |> 
+  left_join(idbmi, by = "ID")
+
+apoe_table <- apoe_bmi |> 
+  group_by(GT_APOE) |> 
+  summarise(
+    BMI_n = sum(!is.na(BMI)), # число непустых значений
+    BMI_missing = sum(is.na(BMI)), # число пропущенных значений
+    BMI_mean = mean(BMI, na.rm = TRUE), # среднее
+    BMI_sd = sd(BMI, na.rm = TRUE), # стандарноте отклонение
+    BMI_median = median(BMI, na.rm = TRUE),
+    BMI_q25 = quantile(BMI, 0.25, na.rm = TRUE),
+    BMI_q75 = quantile(BMI, 0.75, na.rm = TRUE),
+    BMI_min = min(BMI, na.rm = TRUE),
+    BMI_max = max(BMI, na.rm = TRUE),
+
+    HGB_n = sum(!is.na(HGB)), # число непустых значений
+    HGB_missing = sum(is.na(HGB)), # число пропущенных значений
+    HGB_mean = mean(HGB, na.rm = TRUE), # среднее
+    HGB_sd = sd(HGB, na.rm = TRUE), # стандарноте отклонение
+    HGB_median = median(HGB, na.rm = TRUE),
+    HGB_q25 = quantile(HGB, 0.25, na.rm = TRUE),
+    HGB_q75 = quantile(HGB, 0.75, na.rm = TRUE),
+    HGB_min = min(HGB, na.rm = TRUE),
+    HGB_max = max(HGB, na.rm = TRUE),
+
+    LYM_n = sum(!is.na(LYM)), # число непустых значений
+    LYM_missing = sum(is.na(LYM)), # число пропущенных значений
+    LYM_mean = mean(LYM, na.rm = TRUE), # среднее
+    LYM_sd = sd(LYM, na.rm = TRUE), # стандарноте отклонение
+    LYM_median = median(LYM, na.rm = TRUE),
+    LYM_q25 = quantile(LYM, 0.25, na.rm = TRUE),
+    LYM_q75 = quantile(LYM, 0.75, na.rm = TRUE),
+    LYM_min = min(LYM, na.rm = TRUE),
+    LYM_max = max(LYM, na.rm = TRUE),
+  )
+
+# 3 собираю в нужный формат
+
+apoe_flextable <- apoe_table |> 
+  mutate(
+    BMI_mean_sd = str_c(
+      round(BMI_mean, 2),
+      " (",
+      round(BMI_sd, 2),
+      ")"
+      ),
+    BMI_median_q = str_c(
+      round(BMI_median, 2),
+      " [",
+      round(BMI_q25, 2),
+      ", ",
+      round(BMI_q75, 2),
+      "]"
+    ),
+    BMI_range = str_c(
+      round(BMI_min, 2),
+      " - ",
+      round(BMI_max, 2)
+    ),
+
+    HGB_mean_sd = str_c(
+      round(HGB_mean, 2),
+      " (",
+      round(HGB_sd, 2),
+      ")"
+      ),
+    HGB_median_q = str_c(
+      round(HGB_median, 2),
+      " [",
+      round(HGB_q25, 2),
+      ", ",
+      round(HGB_q75, 2),
+      "]"
+    ),
+    HGB_range = str_c(
+      round(HGB_min, 2),
+      " - ",
+      round(HGB_max, 2)
+    ),
+
+    LYM_mean_sd = str_c(
+      round(LYM_mean, 2),
+      " (",
+      round(LYM_sd, 2),
+      ")"
+      ),
+    LYM_median_q = str_c(
+      round(LYM_median, 2),
+      " [",
+      round(LYM_q25, 2),
+      ", ",
+      round(LYM_q75, 2),
+      "]"
+    ),
+    LYM_range = str_c(
+      round(LYM_min, 2),
+      " - ",
+      round(LYM_max, 2)
+    ),
+  )
+# 4
+
+apoe_flextable <- apoe_flextable |> 
+  select(GT_APOE, BMI_n, BMI_missing, BMI_mean_sd, BMI_median_q, BMI_median_q, BMI_range, HGB_n, HGB_missing, HGB_mean_sd, HGB_median_q, HGB_range, LYM_n, LYM_missing, LYM_mean_sd, LYM_median_q, LYM_range)
+
+ft_apoe_2 <- apoe_flextable |> 
+  flextable() |> 
+  set_header_labels(
+    GT_APOE = "Генотип APOE",
+    BMI_n = "BMI: N (не пустых)",
+    BMI_missing = "BMI: N (пропущенных)",
+    BMI_mean_sd = "BMI, кг/м²: среднее (SD)",
+    BMI_median_q = "BMI, кг/м²: медиана [Q1, Q3]",
+    BMI_range = "BMI, кг/м²: min-max",
+
+    HGB_n = "Гемоглобин: N (не пустых)",
+    HGB_missing = "Гемоглобин: N (пропущенных)",
+    HGB_mean_sd = "Гемоглобин, г/л: среднее (СО)",
+    HGB_median_q = "Гемоглобин, г/л: медиана [Q1, Q3]",
+    HGB_range = "Гемоглобин, г/л: min-max",
+
+    LYM_n = "Лимфоциты: N (не пустых)",
+    LYM_missing = "Лейкоциты: N (пропущенных)",
+    LYM_mean_sd = "Лимфоциты, ×10⁹/л: среднее (SD)",
+    LYM_median_q = "Лимфоциты, ×10⁹/л: медиана [Q1, Q3]",
+    LYM_range = "Лимфоциты, ×10⁹/л: min-max"
+  ) |> 
+  autofit()
+
+# выводим обе таблицы
+
+ft_apoe_1
+ft_apoe_2
 ```
+
+Наиболее распространённым генотипом APOE в обеих группах лечения был ε3/ε3 (`r paste(round(apoe_treatment$percent[apoe_treatment$GT_APOE == "ε3/ε3"], 2), collapse = " и ")`%). Распределение генотипов между группами лечения было довольно неравномерным - целый ряд генотипов представлен единичными участниками. 
+Для BMI и исследуемых лабораторных показателей показателей (гемоглобин, лимфоциты) наблюдались небольшие различия описательных статистик (в частности, среднего) между генотипами APOE, однако статистическая значимость этих различий не оценивалась. Наибольшее варьирование среди генотипов показал уровень гемоглобина (см. график).
 
 ## 4. Дополнительные задания
 
@@ -738,6 +898,52 @@ ggplot(lab_long_e4, aes(x = e4_status, y = value, fill = e4_status)) +
 # geom_boxplot, geom_violin
 # geom_point, geom_jitter
 # facet_wrap
+
+# Визуализация Генотипирование
+
+# Stacked bar по распределению участников с разными генотипами APOE среди групп лечения.
+
+ggplot(apoe_treatment, aes(x = ARM, y = percent, fill = GT_APOE)) +
+  geom_col() +
+  scale_fill_manual(
+    values = c(
+      "ε2/ε2" = "#ffbf00",
+      "ε2/ε4" = "#A52A2A",
+      "ε2/ε3" = "#6e4c97",
+      "ε3/ε3" = "#56B4E9",
+      "ε3/ε4" = "#009E73",
+      "ε4/ε4" = "#CC79A7"
+    )
+   ) +
+  labs(
+    title = "Распределение генотип APOE среди групп лечения",
+    x = "Группа лечения",
+    y = "Доля участников, %",
+    fill = "Генотип APOE"
+  ) +
+  theme_minimal()
+
+# Боксплоты по BMI, HGB, LYM среди пациентов с разными генотипами
+
+apoe_bmi_long <- apoe_bmi %>%
+  select(GT_APOE, BMI, HGB, LYM) %>%
+  pivot_longer(
+    cols = -GT_APOE,
+    names_to = "Показатель",
+    values_to = "Значение"
+  )
+
+ggplot(apoe_bmi_long, aes(x = GT_APOE, y = Значение)) +
+  geom_boxplot() +
+  facet_wrap(~ Показатель, scales = "free_y") +
+  labs(
+    title = 'Распределение BMI и лабораторных показателей среди генотипов',
+    x = "Генотип APOE",
+    y = NULL
+  ) +
+  theme_minimal()
+
+
 ```
 
 ### 4.2. Таблицы gtsummary
