@@ -386,6 +386,44 @@ na_table <- data.frame(Missing = missing_count, Complete = complete_count)
 print(na_table)
 ```
 
+заполним пустые значения 
+
+```{r}
+# Создаем возрастные группы
+
+data_merged <- data_merged |>
+  mutate(
+    age_group = case_when(
+      AGE >= 50 & AGE <= 59 ~ "50-59",
+      AGE >= 60 & AGE <= 69 ~ "60-69",
+      AGE >= 70 & AGE <= 79 ~ "70-79",
+      AGE >= 80 & AGE <= 89 ~ "80-89",
+    )
+  ) |>
+  # Группируем по полу и возрасту
+  group_by(SEX, age_group) |>
+  # Заменяем NA на среднее по группе
+  mutate(
+    HGB = coalesce(HGB, mean(HGB, na.rm = TRUE)),
+    LYM = coalesce(LYM, mean(LYM, na.rm = TRUE)),
+    WEIGHT_WK4 = coalesce(WEIGHT_WK4, mean(WEIGHT_WK4, na.rm = TRUE))
+  ) |>
+  # нимаем группировку, что бы не полосать дальше
+  ungroup()
+```
+
+Снова проверяем 
+```{r}
+missing_count <- colSums(is.na(data_merged)) # Считаем пропущенные и непустые значения
+complete_count <- colSums(!is.na(data_merged))
+
+# Собираем в таблицу
+na_table <- data.frame(Missing = missing_count, Complete = complete_count)
+
+# Выводим в терминал значения
+print(na_table)
+```
+
 ## 3. Описательные статистики и отчёт
 
 Каждый выполняет свой подраздел в отдельной ветке, используя объединенные данные.
