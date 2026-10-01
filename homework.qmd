@@ -943,6 +943,110 @@ ggplot(apoe_bmi_long, aes(x = GT_APOE, y = Значение)) +
   ) +
   theme_minimal()
 
+# Визуализация Витальные показатели
+
+# Подготовка данных: длинный формат Weight для графика динамики
+vs_weight_long <- data_merged |>
+  select(ID, ARM, WEIGHT_SCR, WEIGHT_WK4) |>
+  pivot_longer(
+    cols = c(WEIGHT_SCR, WEIGHT_WK4),
+    names_to = "visit",
+    values_to = "weight"
+  ) |>
+  mutate(
+    visit = factor(
+      visit,
+      levels = c("WEIGHT_SCR", "WEIGHT_WK4"),
+      labels = c("SCREENING 1", "WEEK 4")
+    )
+  )
+
+# BMI на скрининге по группам лечения: боксплот + точки наблюдений
+ggplot(data_bmi, aes(x = ARM, y = BMI, fill = ARM)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, alpha = 0.4, size = 1) +
+  scale_fill_manual(
+    values = c(
+      "Placebo"              = "#56B4E9",
+      "Xanomeline High Dose" = "#009E73"
+    )
+  ) +
+  labs(
+    title = "BMI на скрининге по группам лечения",
+    x = "Группа лечения",
+    y = "BMI, кг/м²"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# BMI на скрининге по числу аллелей ε4: violin plot + узкий боксплот
+
+ggplot(
+  data_bmi |> filter(!is.na(e4_count)),
+  aes(x = factor(e4_count), y = BMI, fill = factor(e4_count))
+) +
+  geom_violin(alpha = 0.5) +
+  geom_boxplot(width = 0.1, outlier.shape = NA) +
+  scale_fill_manual(
+    values = c(
+      "0" = "#56B4E9",
+      "1" = "#009E73",
+      "2" = "#CC79A7"
+    )
+  ) +
+  labs(
+    title = "BMI на скрининге по числу аллелей ε4",
+    x = "Число аллелей ε4",
+    y = "BMI, кг/м²"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Категория BMI (норма / не норма) по группам лечения
+
+ggplot(data_bmi |> filter(!is.na(BMI_CAT)), aes(x = ARM, fill = BMI_CAT)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(
+    values = c(
+      "Норма"    = "#56B4E9",
+      "Не норма" = "#009E73"
+    )
+  ) +
+  labs(
+    title = "Категория BMI на скрининге по группам лечения",
+    x = "Группа лечения",
+    y = "Доля участников",
+    fill = "Категория BMI"
+  ) +
+  theme_minimal()
+
+# Динамика веса от SCREENING 1 к WEEK 4
+
+ggplot(vs_weight_long, aes(x = visit, y = weight, group = ID, colour = ARM)) +
+  geom_line(alpha = 0.2) +
+  geom_point(alpha = 0.3, size = 1) +
+  stat_summary(
+    aes(group = ARM),
+    fun = mean,
+    geom = "line",
+    linewidth = 1
+  ) +
+  facet_wrap(~ ARM) +
+  scale_colour_manual(
+    values = c(
+      "Placebo"              = "#56B4E9",
+      "Xanomeline High Dose" = "#009E73"
+    )
+  ) +
+  labs(
+    title = "Динамика веса от скрининга к WEEK 4",
+    subtitle = "Линии — индивидуальные траектории, жирная — среднее по группе",
+    x = "Визит",
+    y = "Вес, кг"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
 
 ```
 
