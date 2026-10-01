@@ -533,7 +533,7 @@ ft_e4
 # 1. BMI на скрининге
 data_bmi <- data_merged |>
   mutate(
-    BMI = WEIGHT_SCR / (HEIGHT_SCR / 100)^2  # рост из см в м
+    BMI = WEIGHT_SCR / (HEIGHT_SCR / 100)^2 # рост из см в м
   )
 
 # 2. Категория BMI: норма [18.5; 25) / не норма — вне диапазона
@@ -541,8 +541,8 @@ data_bmi <- data_bmi |>
   mutate(
     BMI_CAT = case_when(
       BMI >= 18.5 & BMI < 25 ~ "Норма",
-      !is.na(BMI)            ~ "Не норма",
-      TRUE                   ~ NA_character_
+      !is.na(BMI) ~ "Не норма",
+      TRUE ~ NA_character_
     )
   )
 
@@ -555,16 +555,16 @@ data_bmi <- data_bmi |>
 bmi_stats_arm <- data_bmi |>
   group_by(ARM) |>
   summarise(
-    n         = sum(!is.na(BMI)),
+    n = sum(!is.na(BMI)),
     n_missing = sum(is.na(BMI)),
-    mean      = mean(BMI, na.rm = TRUE),
-    sd        = sd(BMI, na.rm = TRUE),
-    median    = median(BMI, na.rm = TRUE),
-    q25       = quantile(BMI, 0.25, na.rm = TRUE),
-    q75       = quantile(BMI, 0.75, na.rm = TRUE),
-    min       = min(BMI, na.rm = TRUE),
-    max       = max(BMI, na.rm = TRUE),
-    .groups   = "drop"
+    mean = mean(BMI, na.rm = TRUE),
+    sd = sd(BMI, na.rm = TRUE),
+    median = median(BMI, na.rm = TRUE),
+    q25 = quantile(BMI, 0.25, na.rm = TRUE),
+    q75 = quantile(BMI, 0.75, na.rm = TRUE),
+    min = min(BMI, na.rm = TRUE),
+    max = max(BMI, na.rm = TRUE),
+    .groups = "drop"
   )
 
 # 3b. Категория норма / не норма: число участников (процент)
@@ -573,7 +573,7 @@ bmi_cat_arm <- data_bmi |>
   count(ARM, BMI_CAT) |>
   group_by(ARM) |>
   mutate(
-    pct   = round(n / sum(n) * 100, 1),
+    pct = round(n / sum(n) * 100, 1),
     value = str_c(n, " (", pct, "%)")
   ) |>
   ungroup() |>
@@ -585,10 +585,10 @@ bmi_cat_arm <- data_bmi |>
 data_bmi <- data_bmi |>
   mutate(
     e4_count = case_when(
-      GT_APOE == "ε4/ε4"                            ~ 2L,
-      GT_APOE %in% c("ε3/ε4", "ε2/ε4")              ~ 1L,
-      GT_APOE %in% c("ε3/ε3", "ε2/ε3", "ε2/ε2")     ~ 0L,
-      TRUE                                           ~ NA_integer_
+      GT_APOE == "ε4/ε4" ~ 2L,
+      GT_APOE %in% c("ε3/ε4", "ε2/ε4") ~ 1L,
+      GT_APOE %in% c("ε3/ε3", "ε2/ε3", "ε2/ε2") ~ 0L,
+      TRUE ~ NA_integer_
     )
   )
 
@@ -596,16 +596,16 @@ bmi_stats_e4 <- data_bmi |>
   filter(!is.na(e4_count)) |>
   group_by(e4_count) |>
   summarise(
-    n         = sum(!is.na(BMI)),
+    n = sum(!is.na(BMI)),
     n_missing = sum(is.na(BMI)),
-    mean      = mean(BMI, na.rm = TRUE),
-    sd        = sd(BMI, na.rm = TRUE),
-    median    = median(BMI, na.rm = TRUE),
-    q25       = quantile(BMI, 0.25, na.rm = TRUE),
-    q75       = quantile(BMI, 0.75, na.rm = TRUE),
-    min       = min(BMI, na.rm = TRUE),
-    max       = max(BMI, na.rm = TRUE),
-    .groups   = "drop"
+    mean = mean(BMI, na.rm = TRUE),
+    sd = sd(BMI, na.rm = TRUE),
+    median = median(BMI, na.rm = TRUE),
+    q25 = quantile(BMI, 0.25, na.rm = TRUE),
+    q75 = quantile(BMI, 0.75, na.rm = TRUE),
+    min = min(BMI, na.rm = TRUE),
+    max = max(BMI, na.rm = TRUE),
+    .groups = "drop"
   ) |>
   mutate(e4_count = factor(e4_count, levels = 0:2))
 
@@ -639,8 +639,8 @@ format_bmi_stats <- function(df, group_col) {
 ft_bmi_arm <- format_bmi_stats(bmi_stats_arm, ARM) |>
   flextable() |>
   set_header_labels(
-    ARM       = "Группа лечения",
-    n         = "N (непустых)",
+    ARM = "Группа лечения",
+    n = "N (непустых)",
     n_missing = "Пропущено"
   ) |>
   set_caption("BMI на скрининге по группам лечения, кг/м²") |>
@@ -657,8 +657,8 @@ ft_bmi_cat <- bmi_cat_arm |>
 ft_bmi_e4 <- format_bmi_stats(bmi_stats_e4, e4_count) |>
   flextable() |>
   set_header_labels(
-    e4_count  = "Число аллелей ε4",
-    n         = "N (непустых)",
+    e4_count = "Число аллелей ε4",
+    n = "N (непустых)",
     n_missing = "Пропущено"
   ) |>
   set_caption("BMI на скрининге по числу аллелей ε4, кг/м²") |>
@@ -685,14 +685,14 @@ ft_bmi_e4
 
 ```{r}
 # 1
-apoe_treatment <- data_merged |> 
-  group_by(ARM, GT_APOE) |> 
+apoe_treatment <- data_merged |>
+  group_by(ARM, GT_APOE) |>
   summarise(
     n = n(),
     .groups = "drop"
   )
-apoe_treatment <- apoe_treatment |> 
-  group_by(ARM) |> 
+apoe_treatment <- apoe_treatment |>
+  group_by(ARM) |>
   mutate(
     percent = round(n / sum(n) * 100, 2)
   )
@@ -709,14 +709,14 @@ ft_apoe_1 <- apoe_treatment %>%
 
 # 2
 # поскольку в основной таблице data_merged данных по BMI нет, во избежание дуплицирования обсчетов, я использовала данные по BMI, использованные в секции 3.2
-idbmi <- data_bmi |> 
+idbmi <- data_bmi |>
   select(ID, BMI)
 
-apoe_bmi <- data_merged |> 
+apoe_bmi <- data_merged |>
   left_join(idbmi, by = "ID")
 
-apoe_table <- apoe_bmi |> 
-  group_by(GT_APOE) |> 
+apoe_table <- apoe_bmi |>
+  group_by(GT_APOE) |>
   summarise(
     BMI_n = sum(!is.na(BMI)), # число непустых значений
     BMI_missing = sum(is.na(BMI)), # число пропущенных значений
@@ -751,14 +751,14 @@ apoe_table <- apoe_bmi |>
 
 # 3 собираю в нужный формат
 
-apoe_flextable <- apoe_table |> 
+apoe_flextable <- apoe_table |>
   mutate(
     BMI_mean_sd = str_c(
       round(BMI_mean, 2),
       " (",
       round(BMI_sd, 2),
       ")"
-      ),
+    ),
     BMI_median_q = str_c(
       round(BMI_median, 2),
       " [",
@@ -778,7 +778,7 @@ apoe_flextable <- apoe_table |>
       " (",
       round(HGB_sd, 2),
       ")"
-      ),
+    ),
     HGB_median_q = str_c(
       round(HGB_median, 2),
       " [",
@@ -798,7 +798,7 @@ apoe_flextable <- apoe_table |>
       " (",
       round(LYM_sd, 2),
       ")"
-      ),
+    ),
     LYM_median_q = str_c(
       round(LYM_median, 2),
       " [",
@@ -815,11 +815,29 @@ apoe_flextable <- apoe_table |>
   )
 # 4
 
-apoe_flextable <- apoe_flextable |> 
-  select(GT_APOE, BMI_n, BMI_missing, BMI_mean_sd, BMI_median_q, BMI_median_q, BMI_range, HGB_n, HGB_missing, HGB_mean_sd, HGB_median_q, HGB_range, LYM_n, LYM_missing, LYM_mean_sd, LYM_median_q, LYM_range)
+apoe_flextable <- apoe_flextable |>
+  select(
+    GT_APOE,
+    BMI_n,
+    BMI_missing,
+    BMI_mean_sd,
+    BMI_median_q,
+    BMI_median_q,
+    BMI_range,
+    HGB_n,
+    HGB_missing,
+    HGB_mean_sd,
+    HGB_median_q,
+    HGB_range,
+    LYM_n,
+    LYM_missing,
+    LYM_mean_sd,
+    LYM_median_q,
+    LYM_range
+  )
 
-ft_apoe_2 <- apoe_flextable |> 
-  flextable() |> 
+ft_apoe_2 <- apoe_flextable |>
+  flextable() |>
   set_header_labels(
     GT_APOE = "Генотип APOE",
     BMI_n = "BMI: N (не пустых)",
@@ -839,7 +857,7 @@ ft_apoe_2 <- apoe_flextable |>
     LYM_mean_sd = "Лимфоциты, ×10⁹/л: среднее (SD)",
     LYM_median_q = "Лимфоциты, ×10⁹/л: медиана [Q1, Q3]",
     LYM_range = "Лимфоциты, ×10⁹/л: min-max"
-  ) |> 
+  ) |>
   autofit()
 
 # выводим обе таблицы
@@ -914,7 +932,7 @@ ggplot(apoe_treatment, aes(x = ARM, y = percent, fill = GT_APOE)) +
       "ε3/ε4" = "#009E73",
       "ε4/ε4" = "#CC79A7"
     )
-   ) +
+  ) +
   labs(
     title = "Распределение генотип APOE среди групп лечения",
     x = "Группа лечения",
@@ -935,7 +953,7 @@ apoe_bmi_long <- apoe_bmi %>%
 
 ggplot(apoe_bmi_long, aes(x = GT_APOE, y = Значение)) +
   geom_boxplot() +
-  facet_wrap(~ Показатель, scales = "free_y") +
+  facet_wrap(~Показатель, scales = "free_y") +
   labs(
     title = 'Распределение BMI и лабораторных показателей среди генотипов',
     x = "Генотип APOE",
@@ -967,7 +985,7 @@ ggplot(data_bmi, aes(x = ARM, y = BMI, fill = ARM)) +
   geom_jitter(width = 0.15, alpha = 0.4, size = 1) +
   scale_fill_manual(
     values = c(
-      "Placebo"              = "#56B4E9",
+      "Placebo" = "#56B4E9",
       "Xanomeline High Dose" = "#009E73"
     )
   ) +
@@ -1009,7 +1027,7 @@ ggplot(data_bmi |> filter(!is.na(BMI_CAT)), aes(x = ARM, fill = BMI_CAT)) +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(
     values = c(
-      "Норма"    = "#56B4E9",
+      "Норма" = "#56B4E9",
       "Не норма" = "#009E73"
     )
   ) +
@@ -1032,10 +1050,10 @@ ggplot(vs_weight_long, aes(x = visit, y = weight, group = ID, colour = ARM)) +
     geom = "line",
     linewidth = 1
   ) +
-  facet_wrap(~ ARM) +
+  facet_wrap(~ARM) +
   scale_colour_manual(
     values = c(
-      "Placebo"              = "#56B4E9",
+      "Placebo" = "#56B4E9",
       "Xanomeline High Dose" = "#009E73"
     )
   ) +
@@ -1047,7 +1065,6 @@ ggplot(vs_weight_long, aes(x = visit, y = weight, group = ID, colour = ARM)) +
   ) +
   theme_minimal() +
   theme(legend.position = "none")
-
 ```
 
 ### 4.2. Таблицы gtsummary
@@ -1056,8 +1073,88 @@ ggplot(vs_weight_long, aes(x = visit, y = weight, group = ID, colour = ARM)) +
 Изучите документацию к функции [на сайте](https://www.danieldsjoberg.com/gtsummary/articles/tbl_summary.html).
 
 ```{r}
-# См. документацию:
-# ?tbl_summary
+library(gtsummary)
+library(dplyr)
+library(stringr)
+
+# Подготовка данных
+data_merged <- data_merged |>
+  mutate(
+    e4_status = case_when(
+      str_detect(GT_APOE, "ε4") ~ "Носитель ε4",
+      TRUE ~ "Неноситель ε4"
+    )
+  )
+
+# перевод на русский
+translate_stats <- function(x) {
+  x |>
+    modify_table_body(
+      ~ .x |>
+        mutate(
+          label = case_when(
+            label == "N_nonmiss" ~ "N (непустых)",
+            label == "N_miss" ~ "Пропущено",
+            label == "mean (sd)" ~ "Среднее (СО)",
+            label == "median [p25, p75]" ~ "Медиана [25%; 75%]",
+            label == "min - max" ~ "Мин – Макс",
+            TRUE ~ label
+          )
+        )
+    )
+}
+
+# По группам лечения (ARM)
+table_arm <- data_merged |>
+  select(ARM, HGB, LYM) |>
+  tbl_summary(
+    by = ARM,
+    missing = "no",
+    label = list(
+      HGB ~ "Гемоглобин (HGB), г/л",
+      LYM ~ "Лимфоциты (LYM), 10^9/л"
+    ),
+    statistic = list(
+      all_continuous() ~ c(
+        "{N_nonmiss}",
+        "{N_miss}",
+        "{mean} ({sd})",
+        "{median} [{p25}; {p75}]",
+        "{min} – {max}"
+      )
+    ),
+    type = all_continuous() ~ "continuous2"
+  ) |>
+  bold_labels() |>
+  translate_stats() # Применяем наш перевод
+
+# по статусу носительства ε4
+table_e4 <- data_merged |>
+  select(e4_status, HGB, LYM) |>
+  tbl_summary(
+    by = e4_status,
+    missing = "no",
+    label = list(
+      HGB ~ "Гемоглобин (HGB), г/л",
+      LYM ~ "Лимфоциты (LYM), 10^9/л"
+    ),
+    statistic = list(
+      all_continuous() ~ c(
+        "{N_nonmiss}",
+        "{N_miss}",
+        "{mean} ({sd})",
+        "{median} [{p25}; {p75}]",
+        "{min} – {max}"
+      )
+    ),
+    type = all_continuous() ~ "continuous2"
+  ) |>
+  bold_labels() |>
+  translate_stats() # Применяем перевод
+
+# Вывод результатов
+table_arm
+table_e4
 ```
 
 ### 4.3. Заполнение пропущенных значений
